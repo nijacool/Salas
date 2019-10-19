@@ -1,0 +1,239 @@
+//Header
+#ifndef CRYPTO_H
+#define CRYPTO_H
+#include <QString>
+#include <QVector>
+
+class Crypto
+{
+public:
+    Crypto();
+    Crypto(ushort m_Key, QString m_OpSequence);
+    virtual ~Crypto();
+    QString encrypt(QString const &QString);
+    QString decrypt(QString const &QString);
+private:
+    ushort m_Key;
+    QString m_OpSequence;
+    //ushort m_CharSetSize;
+    //QVector<int> m_Perm;
+
+    QString shift(const QString& text, ushort m_Key);
+    QString unshift(const QString& text, ushort m_Key);
+    QString permute(const QString& text, ushort m_Key);
+    QString upermute(const QString& text, ushort m_Key);
+    static int myRand(int max, int min);
+    static void shuffle(QVector<int> &text,int n, ushort m_Key);
+    QVector<int> randomPerm(int n);
+
+};
+
+#endif // CRYPTO_H
+
+//cpp file 
+
+#include "crypto.h"
+#include <QString>
+#include <QTextStream>
+#include <QVector>
+#include <QDebug>
+
+
+Crypto::Crypto()
+    :m_Key(), m_OpSequence(){}
+Crypto::Crypto(ushort m_Key, QString m_OpSequence)
+    :m_Key(m_Key), m_OpSequence(m_OpSequence){}
+Crypto::~Crypto(){}
+
+int Crypto::myRand(int max, int min){
+        //srand(m_Key);
+        int nMax = max - 1;
+        int randNum = rand() % (nMax - min + 1) + min;
+        return randNum;
+        }
+void Crypto::shuffle(QVector<int> &arr, int n, ushort m_Key){
+    if (n > 1){
+        int i;
+        srand(m_Key);
+        for (i = 0; i < n - 1; ++i){
+            int j = myRand(n,0);
+            int t = arr[j];
+            arr[j] = arr[i];
+            arr[i] = t;
+        }
+    }
+}
+QVector<int> Crypto::randomPerm(int n){
+        srand(m_Key);
+        int sizeS = n - 1;
+        QVector<int> myvector(n);
+        for (int i = 0; i < n; ++i) {
+            myvector[i] = i;
+        }
+        shuffle(myvector, sizeS, m_Key);
+        return myvector;
+
+}
+
+QString Crypto::shift(const QString &text, ushort m_Key) {
+    srand(m_Key);
+    const int size = text.length();
+    QString tempS = text;
+    QString l;
+    for (int i = 0; i < size; ++i) {
+        int spaces = rand() % 127;
+        int n = tempS[i].toLatin1();
+        int b = n + spaces;
+        while (b > 127 || b < 0) {
+            if (b > 127) {
+                b = b - 127;
+            }if (b < 0) {
+                b = b + 127;
+            }
+        }
+        QChar c = QChar(b).toLatin1();
+        l.append(c);
+    }
+    return l;
+}
+QString Crypto::permute(const QString &text, ushort m_Key){
+        srand(m_Key);
+        QString nText;
+        int sizeL = text.length();
+        QVector<int> temporary = randomPerm(sizeL);
+        for (int i = sizeL - 1; i >= 0; i--) {
+            nText[i] = text[temporary[i]];
+        }
+        return nText;
+}
+QString Crypto::upermute(const QString &text, ushort m_Key) {
+    srand(m_Key);
+    QString nText;
+    int sizeL = text.length();
+    QVector<int> temporary = randomPerm(sizeL);
+    for (int i = 0; i <= sizeL - 1; ++i) {
+        nText[temporary[i]] = text[i];
+    }
+    return nText;
+}
+QString Crypto::unshift(const QString &text, ushort m_Key){
+    srand(m_Key);
+        const int size = text.length();
+        QString tempS = text;
+        QString l;
+        for (int y = 0; y < size; ++y) {
+            int spaces = rand() % 127;
+            int n = tempS[y].toLatin1();
+            int b = n - spaces;
+            while (b > 127 || b < 0) {
+                if (b < 0) {
+                    b = b + 127;
+                }
+                if (b > 127) {
+                    b = b - 127;
+                }
+            }
+            QChar c = QChar(b).toLatin1();
+            l.append(c);
+        }
+        return l;
+}
+
+QString Crypto::encrypt(const QString &text){
+        srand(m_Key);
+        QString temporary = text;
+        for (int i = 0; i <= m_OpSequence.length() - 1; i++) {
+            if (m_OpSequence[i] == "s" || m_OpSequence[i] == "S") {
+                temporary = shift(temporary, m_Key);
+            }
+            if (m_OpSequence[i] == "p" || m_OpSequence[i] == "P") {
+                temporary = permute(temporary, m_Key);
+            }
+            else {
+                continue;
+            }
+        }
+        return temporary;
+
+}
+QString Crypto::decrypt(const QString &text){
+    srand(m_Key);
+        QString temporary = text;
+        for (int i = m_OpSequence.length() - 1; i >= 0; i--) {
+            if (m_OpSequence.at(i) == "p" || m_OpSequence.at(i) == "P") {
+                temporary = upermute(temporary, m_Key);
+                continue;
+            }
+
+        if (m_OpSequence.at(i) == "s" || m_OpSequence.at(i) == "S") {
+            temporary = unshift(temporary, m_Key);
+            continue;
+        }
+
+            else {
+                continue;
+            }
+        }
+        return temporary;
+}
+
+//main.cpp
+
+#include <QCoreApplication>
+#include<QTextStream>
+#include "crypto.h"
+#include<QString>
+#include <QDebug>
+#include <iostream>
+#include <string>
+#include <time.h>
+#include <stdlib.h>
+using namespace std;
+
+int main(int argc, char *argv[])
+{
+    QCoreApplication a(argc, argv);
+
+       srand(time(NULL));
+       ushort Key = rand();
+       char message[300];
+       cout <<"Enter your Message (MAX 300 Characters): ";
+       cin.getline(message,300);
+       cin.ignore();
+
+       QString messages = QString::fromStdString(message);
+
+       /* //In case you want you want to put the amount of S/P encryptions
+        *
+       qDebug() <<"\nMethods of Encryption: ";
+       qDebug() <<"You can Encrypt as many times as you want, the more times, the more secure.";
+       qDebug() <<"Up to 10 times, type as many 's' and 'p' as you want to keep switching between two methods of encryption.";
+       qDebug() <<"S : Shift, P: Permute";
+
+       char sel[10];
+       cout << "\n Enter sequence: ";
+       cin.getline(sel,10);
+       QString seq = QString::fromStdString(sel);
+*/
+       QVector<QString>mylist;
+       mylist << "s" << "p";
+       QString seqS;
+
+       for(int i = 0; i < 10; ++i){
+           int temp = rand() % 2;
+           seqS.append(mylist[temp]);
+       }
+
+       QTextStream cout(stdout);
+
+       QString strE; //str1 = messages str2 = strE
+       cout << "Original string: " << messages << endl;
+
+       Crypto crypt(Key, seqS);
+       strE = crypt.encrypt(messages);
+       cout << "Encrypted string: " << strE << endl;
+       cout << "Recovered string: " << crypt.decrypt(strE) << endl;
+       
+    return a.exec();
+}
+
